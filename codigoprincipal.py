@@ -1,26 +1,49 @@
 import cv2
+import os
 
 def main():
-    # Inicializa a câmera
+    jogada = 1
+    # Inicializa a captura de vídeo da webcam
     cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Erro ao abrir a câmera")
+        return
+
+    # Cria um diretório para armazenar as fotos, se não existir
+    if not os.path.exists('fotos'):
+        os.makedirs('fotos')
 
     while True:
-        # Lê o frame da câmera
+        # Captura frame por frame
         ret, frame = cap.read()
         if not ret:
-            print("Falha ao capturar imagem da câmera.")
+            print("Erro ao capturar o frame")
             break
 
-        # Converte para escala de cinza
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # Mostra o frame capturado
+        cv2.imshow('Webcam', frame)
 
-        # Aplica a binarização
-        img = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV,25,16)
+        # Verifica se a tecla 'x' foi pressionada
+        if cv2.waitKey(1) & 0xFF == ord('x'):
+            # Salva a imagem capturada
+            img_name = f"fotos/foto_jogada_{jogada}.png"
+            cv2.imwrite(img_name, frame)
+            print(f"Foto salva como {img_name}")
+            jogada += 1
 
-        # Exibe o frame binarizado
-        cv2.imshow('Frame Binarizado', img)
+        # Verifica se a tecla 'z' foi pressionada
+        if cv2.waitKey(1) & 0xFF == ord('z'):
+        # Exclui todas as fotos na pasta 'fotos'
+            for file in os.listdir('fotos'):
+                file_path = os.path.join('fotos', file)
+                try:
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
+                        print(f"Foto excluída: {file_path}")
+                except Exception as e:
+                    print(f"Erro ao excluir {file_path}: {e}")
 
-        # Sai do loop quando a tecla 'q' é pressionada
+        # Verifica se a tecla 'q' foi pressionada para sair
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
@@ -30,4 +53,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-#teste teste teste teste
