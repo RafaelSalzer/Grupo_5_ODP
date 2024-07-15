@@ -2,7 +2,7 @@ import cv2
 
 def main():
     # Inicializa a câmera
-    cap = cv2.VideoCapture('https://192.168.2.107:8080/video')
+    cap = cv2.VideoCapture(1)
 
     while True:
         # Lê o frame da câmera

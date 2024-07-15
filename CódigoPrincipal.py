@@ -58,7 +58,7 @@ while True:
         print("Press q for exit : ")
         while True:
             ## show frame from camera and set positon by moving camera
-            flag , img = cv2.VideoCapture('https://192.168.2.107:8080/video').read()
+            flag , img = cv2.VideoCapture(1).read()
             img = cv2.resize(img,img_resize)
             if flag:
                 cv2.imshow("Set camera position",img)
@@ -80,7 +80,7 @@ while True:
 while True:
     print("DO you want to warp prespective image[y/n] :",end=" ")
     answer = str(input())
-    ret , img = cv2.VideoCapture('https://192.168.2.107:8080/video').read()
+    ret , img = cv2.VideoCapture(1).read()
     img =   cv2.resize(img,(800,800))
     width,height = 800,800
     if answer == "y" or answer == "Y":
@@ -106,7 +106,7 @@ while True:
         print("do you want to calibrate new Points for corners [y/n]:",end=" ")
         ans = str(input())
         if ans == "y" or ans == "Y":
-            ret , img = cv2.VideoCapture('https://192.168.2.107:8080/video').read()
+            ret , img = cv2.VideoCapture(1).read()
             img =   cv2.resize(img,(800,800))
             img = get_warp_img(img,dir_path,img_resize)
             points = []
@@ -117,7 +117,7 @@ while True:
             break
         elif ans == "n" or ans == "N":
             # do some work
-            ret , img = cv2.VideoCapture('https://192.168.2.107:8080/video').read()
+            ret , img = cv2.VideoCapture(1).read()
             img = cv2.resize(img,(800,800))
             img = get_warp_img(img,dir_path,img_resize)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -136,22 +136,21 @@ while True:
             # Arrays to store object points and image points from all the images.
             objpoints = [] # 3d point in real world space
             imgpoints = [] # 2d points in image plane.
-            
+            corners2=[]
             
             # Find the chess board corners
-            ret, corners = cv2.findChessboardCorners(img, (8,8), None)
+            ret, corners = cv2.findChessboardCorners(img, (7,7))
             
             # If found, add object points, image points (after refining them)
             if ret == True:
-                 corners2 = cv2.cornerSubPix(img,corners, (11,11), (-1,-1), criteria)
-                 imgpoints.append(corners2)
-            
+                 
             # Draw and display the corners
-            cv2.drawChessboardCorners(img, (8,8), corners2, ret)
-            cv2.imshow('img', img)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-
+                cv2.drawChessboardCorners(img, (7,7), corners, ret)
+                cv2.imshow('img', img)
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
+            else:
+                 print('Corners not found')
             
            ## points = np.load(dir_path+'/chess_board_points.npz')['points']
            ## print("points Load successfully")
