@@ -334,6 +334,7 @@ while True:
             for i in range(9):
                 pt = get_points(img,9)
                 points.append(pt)
+                print(points)
             np.savez(dir_path+"/chess_board_points.npz",points=points)
             break
         elif ans == "n" or ans == "N":

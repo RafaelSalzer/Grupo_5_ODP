@@ -101,56 +101,55 @@ while True:
 
 ###################################################################################
 ## calibrate points for chess corners
-## Parte Nova
 ###################################################################################
-def detectar_quinas_tabuleiro(imagem, tamanho_tabuleiro=(7, 7)):
-    # Converter para escala de cinza
-    cinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
+# Função para encontrar os cantos do tabuleiro de xadrez e imprimir as coordenadas
+def find_and_print_corners(img):
+    # Convertendo a imagem para escala de cinza
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # Encontrar as quinas do tabuleiro de xadrez
-    ret, quinas = cv2.findChessboardCorners(cinza, tamanho_tabuleiro, None)
+    # Tamanho do tabuleiro de xadrez (número de cruzamentos internos das linhas do tabuleiro)
+    chessboard_size = (7, 7)
+
+    # Arrays para armazenar pontos 3D do objeto e pontos 2D da imagem
+    objpoints = []  # Pontos 3D no espaço do mundo real
+    imgpoints = []  # Pontos 2D no plano da imagem
+
+    # Prepare os pontos do objeto, como (0,0,0), (1,0,0), ..., (6,5,0)
+    objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
+    objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
+
+    # Encontre os cantos do tabuleiro de xadrez
+    ret, corners = cv2.findChessboardCorners(gray, chessboard_size, None)
+
+    # Se encontrou, adicione pontos de objeto e pontos de imagem (após refiná-los)
     if ret:
-        # Refinar as coordenadas das quinas
-        quinas = cv2.cornerSubPix(cinza, quinas, (11, 11), (-1, -1), 
-                                  (cv2.TermCriteria_EPS + cv2.TermCriteria_MAX_ITER, 30, 0.001))
+        objpoints.append(objp)
         
-        # Inicializar a imagem para desenhar as caixas e as coordenadas dos retângulos
-        img_box = imagem.copy()
-        boxes = np.zeros((tamanho_tabuleiro[1], tamanho_tabuleiro[0], 4), dtype=int)
+        # Refinando os cantos para precisão subpixel
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
-        # Preencher as caixas e desenhar os retângulos
-        for i in range(tamanho_tabuleiro[1] - 1):
-            for j in range(tamanho_tabuleiro[0] - 1):
-                # Calcular os índices dos quatro cantos de cada casa
-                top_left = i * tamanho_tabuleiro[0] + j
-                top_right = top_left + 1
-                bottom_left = top_left + tamanho_tabuleiro[0]
-                bottom_right = bottom_left + 1
+        corners_refined = cv2.cornerSubPix(gray, corners, (9, 9), (-1, -1), criteria)
 
-                # Obter as coordenadas dos quatro cantos e converter para inteiros
-                pontos = [tuple(map(int, quinas[top_left][0])),
-                          tuple(map(int, quinas[top_right][0])),
-                          tuple(map(int, quinas[bottom_right][0])),
-                          tuple(map(int, quinas[bottom_left][0]))]
+        imgpoints.append(corners_refined)
 
-                # Definir a caixa para a casa
-                boxes[i][j][0] = pontos[0][0]
-                boxes[i][j][1] = pontos[0][1]
-                boxes[i][j][2] = pontos[2][0]
-                boxes[i][j][3] = pontos[2][1]
-        np.savez(dir_path + "/chess_board_Box.npz", boxes=boxes)
+        # Imprimir os pontos encontrados
+        print("Corners found:")
+        for corner in corners_refined:
+            print(corner[0])  # Imprime cada ponto encontrado
 
-        # Desenhar as caixas ao redor de cada casa e adicionar texto
-        for i in range(tamanho_tabuleiro[1] - 1):
-            for j in range(tamanho_tabuleiro[0] - 1):
-                box1 = boxes[i, j]
-                cv2.rectangle(img_box, (int(box1[0]), int(box1[1])), (int(box1[2]), int(box1[3])), (255, 0, 0), 2)
-                cv2.putText(img_box, "({},{})".format(i, j), (int(box1[2]) - 70, int(box1[3]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+        # Desenhe os cantos encontrados na imagem (opcional)
+        cv2.drawChessboardCorners(img, chessboard_size, corners_refined, ret)
+        
+        # Mostrar a imagem com os cantos desenhados (opcional)
+        cv2.imshow('Chessboard Corners', img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
-        return img_box
+        # Salvar objpoints e imgpoints em um arquivo .npz (opcional)
+        # np.savez(dir_path + "/chess_board_points.npz", objpoints=objpoints, imgpoints=imgpoints)
     else:
-        print("Não foi possível encontrar o tabuleiro de xadrez na imagem.")
-        return imagem
+        print('Corners not found')
+
 
 while True:
     print("Do you want to calibrate new points for corners [y/n]:", end=" ")
@@ -169,21 +168,12 @@ while True:
         break
     elif ans == "n":
         ret, img = cv2.VideoCapture(1).read()
-        if not ret:
-            print("Erro ao capturar imagem do vídeo.")
-            break
         img = cv2.resize(img, (800, 800))
-        img = get_warp_img(img, dir_path, (800, 800))
-        img_box = detectar_quinas_tabuleiro(img, tamanho_tabuleiro=(7, 7))
-        
-        # Mostrar a imagem com as caixas desenhadas
-        cv2.imshow("Casas do Tabuleiro", img_box)
-        # Parar o loop ao pressionar a tecla 'q'
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break  
+        img = get_warp_img(img, dir_path, img_resize)
+        find_and_print_corners(img)
+        break
     else:
         print("Something wrong with input")
 
-cv2.VideoCapture(1).release()
-cv2.destroyAllWindows()
+
 

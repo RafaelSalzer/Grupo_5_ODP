@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-def detectar_quinas_tabuleiro(imagem_path, tamanho_tabuleiro=(7, 7)):
+def detectar_quinas_tabuleiro(imagem_path, tamanho_tabuleiro=(7,7)):
     # Carregar a imagem
     imagem = cv2.imread(imagem_path)
     if imagem is None:
@@ -39,7 +39,10 @@ def detectar_quinas_tabuleiro(imagem_path, tamanho_tabuleiro=(7, 7)):
                           tuple(map(int, quinas[bottom_left][0]))]
 
                 # Definir a caixa para a casa
-                boxes[i, j] = [pontos[0][0], pontos[0][1], pontos[2][0], pontos[2][1]]
+                boxes[i][j][0] = pontos[0][0]
+                boxes[i][j][1] = pontos[0][1]
+                boxes[i][j][2] = pontos[2][0]
+                boxes[i][j][3] = pontos[2][1]
 
         # Desenhar as caixas ao redor de cada casa e adicionar texto
         for i in range(tamanho_tabuleiro[1] - 1):
@@ -57,4 +60,4 @@ def detectar_quinas_tabuleiro(imagem_path, tamanho_tabuleiro=(7, 7)):
 
 # Caminho para a imagem do tabuleiro de xadrez
 imagem_path = "tabuleiroxadrezVerde.png"
-detectar_quinas_tabuleiro(imagem_path, tamanho_tabuleiro=(7, 7))
+detectar_quinas_tabuleiro(imagem_path, tamanho_tabuleiro=(7,7))
