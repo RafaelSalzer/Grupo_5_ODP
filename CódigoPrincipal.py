@@ -175,3 +175,43 @@ while True:
         break
     else:
         print("Something wrong with input")
+
+###################################################################################
+## Define Boxes
+###################################################################################
+for i in range(8):
+    for j in range(8):
+        boxes[i][j][0] = points[i][j][0]
+        boxes[i][j][1] = points[i][j][1]
+        boxes[i][j][2] = points[i+1][j+1][0]
+        boxes[i][j][3] = points[i+1][j+1][1]
+
+np.savez(dir_path+"/chess_board_Box.npz",boxes=boxes)
+
+###################################################################################
+## View Boxes
+###################################################################################
+while True:
+    print("Do you want to see Boxex on Chess board [y/n]:",end=" ")
+    ans = str(input())
+    if ans == 'y' or ans == "Y":
+        # show boxes
+        ret , img = cv2.VideoCapture(1).read()
+        img =   cv2.resize(img,(800,800))
+        img = get_warp_img(img,dir_path,img_resize)
+        img_box = img.copy()
+        for i in range(8):
+            for j in range(8):
+                box1 = boxes[i,j]
+                cv2.rectangle(img_box, (int(box1[0]), int(box1[1])), (int(box1[2]), int(box1[3])), (255,0,0), 2)
+                cv2.putText(img_box,"({},{})".format(i,j),(int(box1[2])-70, int(box1[3])-50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,255),2)
+                cv2.imshow("img",img_box)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        break
+    elif ans == 'N' or ans == "n":
+        print("ok, got it you don't want ot see boxes")
+        break
+    else:
+        print("Enter valid input")
+
