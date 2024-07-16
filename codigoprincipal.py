@@ -94,7 +94,7 @@ def main():
         print(linha)
 
     # Inicializa a captura de vídeo da webcam
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     if not cap.isOpened():
         print("Erro ao abrir a câmera")
         exit()
@@ -182,9 +182,9 @@ def main():
             break
 
         # Desenhar as ROIs no frame da webcam
-        #for roi in rois:
-            #x, y, w, h = roi
-            #cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        for roi in rois:
+            x, y, w, h = roi
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
         # Exibir o frame com as ROIs
         cv2.imshow("Webcam com ROIs", frame)
