@@ -1,41 +1,24 @@
 import cv2
 import os
-import numpy as np
-def processa_e_analisa_imagem(imagem, rois, jogada):  
+def processa_imagem(imagem, rois, jogada):  
     
     # Processamento da imagem
     imgCinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
     imgTh = cv2.adaptiveThreshold(imgCinza, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 25, 16)
-    imgBlur = cv2.medianBlur(imgTh, 5)
-    kernel = np.ones((3, 3), np.uint8)
-    imgDil = cv2.dilate(imgBlur, kernel)
 
-    # Criar a pasta 'fotos_com_ROIs' se ela não existir
-    if not os.path.exists('fotos_processadas'):
-        os.makedirs('fotos_processadas')
-    
-    # Salvar a imagem com as ROIs na pasta
-    caminho_para_salvar = os.path.join('fotos_processadas', f'foto_processada_jogada_{jogada}.png')
-    cv2.imwrite(caminho_para_salvar, imgDil)
-    
-    imagem_ROI = cv2.imread(f'fotos_processadas/foto_processada_jogada_{jogada}.png')
     # Desenhar os retângulos das ROIs na imagem
     for (x, y, w, h) in rois:
-        recorte = imgDil[y:y+h, x:x+w]
-        qtPxBranco = cv2.countNonZero(recorte)
-        cv2.putText(imagem_ROI, str (qtPxBranco), (x, y + h - 10),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-        cv2.rectangle(imagem_ROI, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        #colocar o if aqui <------------
+        cv2.rectangle(imgTh, (x, y), (x + w, y + h), (0, 255, 0), 2)
     
     # Criar a pasta 'fotos_com_ROIs' se ela não existir
     if not os.path.exists('fotos_com_ROIs'):
         os.makedirs('fotos_com_ROIs')
     
     # Salvar a imagem com as ROIs na pasta
-    caminho_para_salvar = os.path.join('fotos_com_ROIs', f'foto_com_ROIs_jogada_{jogada}.png')
-    cv2.imwrite(caminho_para_salvar, imagem_ROI)
+    caminho_para_salvar = os.path.join('fotos_com_ROIs', f'foto_com_ROIs_jogada_{jogada}.jpg')
+    cv2.imwrite(caminho_para_salvar, imgTh)
 
-    return imagem_ROI
+    return imgTh
   
 def inicializar_tabuleiro():
     # Cria uma matriz 8x8 inicializada com zeros
@@ -182,9 +165,9 @@ def main():
             break
 
         # Desenhar as ROIs no frame da webcam
-        #for roi in rois:
-            #x, y, w, h = roi
-            #cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        for roi in rois:
+            x, y, w, h = roi
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
         # Exibir o frame com as ROIs
         cv2.imshow("Webcam com ROIs", frame)
@@ -198,22 +181,32 @@ def main():
             img_name = f"fotos_jogadas/foto_jogada_{jogada}.png"
             cv2.imwrite(img_name, frame)
             print(f"Foto salva como {img_name}")
-            
+    
             # Lê a imagem da jogada
             imagem = cv2.imread(f'fotos_jogadas/foto_jogada_{jogada}.png')
-
+    
             # Processamento da imagem
-            #imgCinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
-            #imgTh = cv2.adaptiveThreshold(imgCinza, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 25, 16)
-
-            # Coloca as ROIs na imagem
-            imagem_processada = processa_e_analisa_imagem(imagem, rois, jogada)
-
-            # Exibe a imagem da jogada com as ROIs
-            cv2.imshow(f'Imagem processada da jogada {jogada}', imagem_processada)
+            imgCinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
+            imgTh = cv2.adaptiveThreshold(imgCinza, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 25, 16)
+    
+            # Desenhar as ROIs na imagem processada
+            for roi in rois:
+                x, y, w, h = roi
+                cv2.rectangle(imgTh, (x, y), (x + w, y + h), (0, 255, 0), 2)
+    
+            # Exibir a imagem processada com as ROIs
+            cv2.imshow(f'Imagem processada com ROIs da jogada {jogada}', imgTh)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
+            # Criar a pasta 'fotos_com_ROIs' se ela não existir
+            if not os.path.exists('fotos_com_ROIs'):
+                os.makedirs('fotos_com_ROIs')
+    
+            # Salvar a imagem com as ROIs na pasta
+            caminho_para_salvar = os.path.join('fotos_com_ROIs', f'foto_com_ROIs_jogada_{jogada}.jpg')
+            cv2.imwrite(caminho_para_salvar, imgTh)
+            
             # Aumenta para a próxima jogada
             jogada += 1
 
@@ -239,15 +232,7 @@ def main():
                         print(f"Foto excluída: {file_path}")
                 except Exception as e:
                     print(f"Erro ao excluir {file_path}: {e}")
-            # Exclui todas as fotos na pasta 'fotos_processadas'
-            for file in os.listdir('fotos_processadas'):
-                file_path = os.path.join('fotos_processadas', file)
-                try:
-                    if os.path.isfile(file_path):
-                        os.unlink(file_path)
-                        print(f"Foto excluída: {file_path}")
-                except Exception as e:
-                    print(f"Erro ao excluir {file_path}: {e}")
+
         # Verifica se a tecla 'q' foi pressionada para sair
         elif key == ord('q'):
             break
