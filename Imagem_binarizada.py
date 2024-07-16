@@ -2,10 +2,11 @@ import cv2
 
 def main():
     # Inicializa a câmera
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture('http://192.168.0.135:8080/video')
 
     while True:
         # Lê o frame da câmera
+        
         ret, frame = cap.read()
         if not ret:
             print("Falha ao capturar imagem da câmera.")

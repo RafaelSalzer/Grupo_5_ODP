@@ -36,8 +36,8 @@ bool_position = np.zeros((8,8),dtype=int)
 number_to_position_map = []
 last_move = ""
 game_img = ""
-
-###################################################################################
+#
+##################################################################################
 ## Code For Run Program
 ###################################################################################
 
@@ -102,58 +102,76 @@ while True:
 ###################################################################################
 ## calibrate points for chess corners
 ###################################################################################
-while True:
-        print("do you want to calibrate new Points for corners [y/n]:",end=" ")
-        ans = str(input())
-        if ans == "y" or ans == "Y":
-            ret , img = cv2.VideoCapture(1).read()
-            img =   cv2.resize(img,(800,800))
-            img = get_warp_img(img,dir_path,img_resize)
-            points = []
-            for i in range(9):
-                pt = get_points(img,9)
-                points.append(pt)
-            np.savez(dir_path+"/chess_board_points.npz",points=points)
-            break
-        elif ans == "n" or ans == "N":
-            # do some work
-            ret , img = cv2.VideoCapture(1).read()
-            img = cv2.resize(img,(800,800))
-            img = get_warp_img(img,dir_path,img_resize)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            points = []
+# Função para encontrar os cantos do tabuleiro de xadrez e imprimir as coordenadas
+def find_and_print_corners(img):
+    # Convertendo a imagem para escala de cinza
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-            
-            import glob
-            
-            # termination criteria
-            criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-            
-            # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
-            objp = np.zeros((6*7,3), np.float32)
-            objp[:,:2] = np.mgrid[0:7,0:6].T.reshape(-1,2)
-            
-            # Arrays to store object points and image points from all the images.
-            objpoints = [] # 3d point in real world space
-            imgpoints = [] # 2d points in image plane.
-            corners2=[]
-            
-            # Find the chess board corners
-            ret, corners = cv2.findChessboardCorners(img, (7,7))
-            
-            # If found, add object points, image points (after refining them)
-            if ret == True:
-                 
-            # Draw and display the corners
-                cv2.drawChessboardCorners(img, (7,7), corners, ret)
-                cv2.imshow('img', img)
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
-            else:
-                 print('Corners not found')
-            
-           ## points = np.load(dir_path+'/chess_board_points.npz')['points']
-           ## print("points Load successfully")
-            break
-        else:
-            print("something wrong input")
+    # Tamanho do tabuleiro de xadrez (número de cruzamentos internos das linhas do tabuleiro)
+    chessboard_size = (7, 7)
+
+    # Arrays para armazenar pontos 3D do objeto e pontos 2D da imagem
+    objpoints = []  # Pontos 3D no espaço do mundo real
+    imgpoints = []  # Pontos 2D no plano da imagem
+
+    # Prepare os pontos do objeto, como (0,0,0), (1,0,0), ..., (6,5,0)
+    objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
+    objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
+
+    # Encontre os cantos do tabuleiro de xadrez
+    ret, corners = cv2.findChessboardCorners(gray, chessboard_size, None)
+
+    # Se encontrou, adicione pontos de objeto e pontos de imagem (após refiná-los)
+    if ret:
+        objpoints.append(objp)
+        
+        # Refinando os cantos para precisão subpixel
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+
+        corners_refined = cv2.cornerSubPix(gray, corners, (9, 9), (-1, -1), criteria)
+
+        imgpoints.append(corners_refined)
+
+        # Imprimir os pontos encontrados
+        print("Corners found:")
+        for corner in corners_refined:
+            print(corner[0])  # Imprime cada ponto encontrado
+
+        # Desenhe os cantos encontrados na imagem (opcional)
+        cv2.drawChessboardCorners(img, chessboard_size, corners_refined, ret)
+        
+        # Mostrar a imagem com os cantos desenhados (opcional)
+        cv2.imshow('Chessboard Corners', img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        # Salvar objpoints e imgpoints em um arquivo .npz (opcional)
+        # np.savez(dir_path + "/chess_board_points.npz", objpoints=objpoints, imgpoints=imgpoints)
+    else:
+        print('Corners not found')
+
+# Exemplo de uso no seu código original
+
+while True:
+    print("Do you want to calibrate new points for corners [y/n]:", end=" ")
+    ans = input().strip().lower()
+    
+    if ans == "y":
+        ret, img = cv2.VideoCapture(1).read()
+        img = cv2.resize(img, (800, 800))
+        # Suponho que as funções get_warp_img e get_points estejam definidas em outro lugar
+        img = get_warp_img(img, dir_path, img_resize)
+        points = []
+        for i in range(9):
+            pt = get_points(img, 9)
+            points.append(pt)
+        np.savez(dir_path + "/chess_board_points.npz", points=points)
+        break
+    elif ans == "n":
+        ret, img = cv2.VideoCapture(1).read()
+        img = cv2.resize(img, (800, 800))
+        img = get_warp_img(img, dir_path, img_resize)
+        find_and_print_corners(img)
+        break
+    else:
+        print("Something wrong with input")
