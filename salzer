@@ -1,0 +1,191 @@
+###################################################################################
+## Import Libraries
+###################################################################################
+import os
+import chess
+import chess.engine
+import cv2
+import numpy as np
+
+
+###################################################################################
+## Import files
+###################################################################################
+from detect_points import get_points
+from read_warp_img import get_warp_img
+from find_position_black import find_current_past_position
+
+
+###################################################################################
+## Define Main Variables
+###################################################################################
+
+points = []    # contains chess board corners points
+boxes = np.zeros((8,8,4),dtype=int)    # contains top-left and bottom-right point of chessboard boxes
+fen_line = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR' # fen line of chess board
+board = chess.Board(fen=fen_line) # object of chess board
+dir_path = os.path.dirname(os.path.realpath(__file__))+"/numpy_saved" # path of current directory
+
+# device = cv2.VideoCapture(1) # set devidce for read image (1: for tacking input from usb-webcam)
+img_resize = (800,800) # set o/p image size
+image = []
+engine = chess.engine.SimpleEngine.popen_uci(r"C:\Users\Arthur\Desktop\Braço\stockfish_10_x64.exe" ) # stockfish engine
+chess_board = []   # it will store chess board matrix
+player_bool_position =[]
+bool_position = np.zeros((8,8),dtype=int)
+number_to_position_map = []
+last_move = ""
+game_img = ""
+#
+##################################################################################
+## Code For Run Program
+###################################################################################
+
+print("Enter Code for Special Run : ")
+code = str(input())
+dir_path += "/"+code
+if not os.path.exists(dir_path):
+    os.makedirs(dir_path)
+
+###################################################################################
+## camara position calibration
+###################################################################################
+
+while True:
+    print("Do you want to set camara Position[y/n] : ",end=" ")
+    answer = str(input())
+    if answer == "y" or answer == "Y":
+        print("Press q for exit : ")
+        while True:
+            ## show frame from camera and set positon by moving camera
+            flag , img = cv2.VideoCapture(1).read()
+            img = cv2.resize(img,img_resize)
+            if flag:
+                cv2.imshow("Set camera position",img)
+                k = cv2.waitKey(1)
+                if k == ord('q'):
+                    cv2.destroyAllWindows()
+                    break
+        break
+    elif answer == "n" or answer == "N":
+        print("\nHope that camera position already set...\n")
+        break
+    else:
+        print("Invalid Input ")
+
+###################################################################################
+## Image warp_prespective
+###################################################################################
+
+while True:
+    print("DO you want to warp prespective image[y/n] :",end=" ")
+    answer = str(input())
+    ret , img = cv2.VideoCapture(1).read()
+    img =   cv2.resize(img,(800,800))
+    width,height = 800,800
+    if answer == "y" or answer == "Y":
+        warp_points = get_points(img,4)
+        pts1 = np.float32([[warp_points[0][0],warp_points[0][1]],
+                        [warp_points[1][0],warp_points[1][1]],
+                        [warp_points[3][0],warp_points[3][1]],
+                        [warp_points[2][0],warp_points[2][1]]])
+        pts2 = np.float32([[0,0],[width,0],[0,height],[width,height]])
+        np.savez(dir_path+"/chess_board_warp_prespective.npz",pts1=pts1,pts2=pts2)
+        result = get_warp_img(img,dir_path,img_resize)
+        cv2.imshow("result",result)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        break
+    else:
+        print("Enter valid input")
+
+
+
+# Lista para armazenar os pontos clicados
+pontos_clicados = []
+
+def capturar_pontos(event, x, y, flags, param):
+    global pontos_clicados
+    if event == cv2.EVENT_LBUTTONDOWN:
+        pontos_clicados.append((x, y))
+        cv2.circle(img, (x, y), 5, (0, 255, 0), -1)
+        cv2.imshow("Imagem", img)
+
+def warp_perspective_tabuleiro(img, pontos_ordenados):
+    # Definir os pontos de destino para a transformação de perspectiva
+    largura_max = 800  # Defina a largura desejada da imagem transformada
+    altura_max = 800  # Defina a altura desejada da imagem transformada
+    
+    pontos_destino = np.array([
+        [0, 0],
+        [largura_max - 1, 0],
+        [largura_max - 1, altura_max - 1],
+        [0, altura_max - 1]], dtype="float32")
+    
+    # Calcular a matriz de transformação de perspectiva
+    matriz = cv2.getPerspectiveTransform(np.array(pontos_ordenados, dtype="float32"), pontos_destino)
+    
+    # Aplicar a transformação de perspectiva
+    warp = cv2.warpPerspective(img, matriz, (largura_max, altura_max))
+    
+    return warp, matriz
+
+def detectar_cantos_casas(img):
+    altura, largura = img.shape[:2]
+    tamanho_casa = altura // 8
+    
+    cantos_casas = []
+    for i in range(8):
+        for j in range(8):
+            x = j * tamanho_casa
+            y = i * tamanho_casa
+            cantos_casas.append((x, y, x + tamanho_casa, y + tamanho_casa))
+            print(cantos_casas)
+    return cantos_casas
+
+def desenhar_roi_original(img, cantos_casas, matriz_inversa):
+    for (x1, y1, x2, y2) in cantos_casas:
+        pontos = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype="float32")
+        pontos = cv2.perspectiveTransform(np.array([pontos]), matriz_inversa)[0]
+        pontos = pontos.astype(int)
+        cv2.polylines(img, [pontos], isClosed=True, color=(255, 0, 0), thickness=1)
+
+while True:
+    ret, img = cv2.VideoCapture(1).read()
+    img = cv2.resize(img, (800, 800))
+    img = get_warp_img(img, dir_path, img_resize)
+    
+    # Carregar a imagem do tabuleiro de xadrez
+    
+   
+    
+    # Exibir a imagem e capturar os pontos clicados
+    cv2.imshow("Imagem", img)
+    cv2.setMouseCallback("Imagem", capturar_pontos)
+    
+    print("Clique nos quatro cantos do tabuleiro de xadrez na ordem: top-left, top-right, bottom-right, bottom-left.")
+    cv2.waitKey(0)
+    
+    if len(pontos_clicados) != 4:
+        print("Você deve clicar exatamente em quatro pontos.")
+    
+    
+    # Aplicar a transformação de perspectiva
+    warp, matriz = warp_perspective_tabuleiro(img, pontos_clicados)
+    
+    # Detectar os cantos das casas do tabuleiro
+    cantos_casas = detectar_cantos_casas(warp)
+    
+    # Calcular a matriz inversa da transformação de perspectiva
+    matriz_inversa = np.linalg.inv(matriz)
+    
+    # Desenhar as ROIs na imagem original
+    desenhar_roi_original(img, cantos_casas, matriz_inversa)
+    
+    # Exibir a imagem original com as ROIs das casas marcadas
+    cv2.imshow("Imagem Original com ROIs das Casas", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
