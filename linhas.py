@@ -4,7 +4,7 @@ import os
 
 def main():
     # Abra a webcam (0 para a webcam integrada, 1 para uma webcam externa, etc.)
-    cap = cv2.VideoCapture('https://192.168.2.107:8080/video')
+    cap = cv2.VideoCapture(1)
 
     while True:
         # Capture frame-by-frame

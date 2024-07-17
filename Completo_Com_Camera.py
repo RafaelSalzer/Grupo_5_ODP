@@ -148,7 +148,7 @@ def detectar_quinas_tabuleiro(imagem, tamanho_tabuleiro=(7, 7)):
                 boxes[i, j, 3] = pontos[i + 1, j + 1, 1]
 
         # Salvar boxes em um arquivo npz
-        np.savez("dir_path/chess_board_Box.npz", boxes=boxes)
+        np.savez(dir_path+"/chess_board_Box.npz",boxes=boxes)
 
         # Desenhar as caixas ao redor de cada casa e adicionar texto
         for i in range(8):
@@ -189,8 +189,8 @@ while True:
         # Mostrar a imagem com as caixas desenhadas
         cv2.imshow("Casas do Tabuleiro", img_box)
         # Parar o loop ao pressionar a tecla 'q'
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break  
+        cv2.waitKey(0)
+        cv2.destroyAllWindows() 
     else:
         print("Something wrong with input")
 
