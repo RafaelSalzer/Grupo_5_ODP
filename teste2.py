@@ -40,7 +40,7 @@ def detectar_cantos_casas(image):
             x = j * tamanho_casa
             y = i * tamanho_casa
             cantos_casas.append((x, y, x + tamanho_casa, y + tamanho_casa))
-    
+    print(cantos_casas)
     return cantos_casas
 
 def desenhar_roi_original(image, cantos_casas, matriz_inversa):
@@ -49,6 +49,7 @@ def desenhar_roi_original(image, cantos_casas, matriz_inversa):
         pontos = cv2.perspectiveTransform(np.array([pontos]), matriz_inversa)[0]
         pontos = pontos.astype(int)
         cv2.polylines(image, [pontos], isClosed=True, color=(255, 0, 0), thickness=1)
+        
 
 def main():
     global image

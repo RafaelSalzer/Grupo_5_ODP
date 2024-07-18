@@ -1,7 +1,58 @@
 import cv2
 import os
 import numpy as np
-def processa_e_analisa_imagem(imagem, rois, jogada):  
+# Lista para armazenar os pontos clicados
+pontos_clicados = []
+
+def capturar_pontos(event, x, y, flags, param):
+    global pontos_clicados
+    if event == cv2.EVENT_LBUTTONDOWN:
+        pontos_clicados.append((x, y))
+        cv2.circle(image, (x, y), 5, (0, 255, 0), -1)
+        cv2.imshow("Imagem", image)
+
+def warp_perspective_tabuleiro(image, pontos_ordenados):
+    # Definir os pontos de destino para a transformação de perspectiva
+    largura_max = 800  # Defina a largura desejada da imagem transformada
+    altura_max = 800  # Defina a altura desejada da imagem transformada
+    
+    pontos_destino = np.array([
+        [0, 0],
+        [largura_max - 1, 0],
+        [largura_max - 1, altura_max - 1],
+        [0, altura_max - 1]], dtype="float32")
+    
+    # Calcular a matriz de transformação de perspectiva
+    matriz = cv2.getPerspectiveTransform(np.array(pontos_ordenados, dtype="float32"), pontos_destino)
+    
+    # Aplicar a transformação de perspectiva
+    warp = cv2.warpPerspective(image, matriz, (largura_max, altura_max))
+    
+    return warp, matriz
+
+def detectar_cantos_casas(image):
+    altura, largura = image.shape[:2]
+    tamanho_casa = altura // 8
+    
+    cantos_casas = []
+    for i in range(8):
+        for j in range(8):
+            x = j * tamanho_casa
+            y = i * tamanho_casa
+            cantos_casas.append((x, y, x + tamanho_casa, y + tamanho_casa))
+
+    print(cantos_casas)
+    return cantos_casas
+
+def desenhar_roi_original(image, cantos_casas, matriz_inversa):
+    for (x1, y1, x2, y2) in cantos_casas:
+        pontos = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype="float32")
+        pontos = cv2.perspectiveTransform(np.array([pontos]), matriz_inversa)[0]
+        pontos = pontos.astype(int)
+        cv2.polylines(image, [pontos], isClosed=True, color=(255, 0, 0), thickness=1)
+    return image
+
+def processa_e_analisa_imagem(imagem, jogada):  
     
     # Processamento da imagem
     imgCinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
@@ -18,24 +69,8 @@ def processa_e_analisa_imagem(imagem, rois, jogada):
     caminho_para_salvar = os.path.join('fotos_processadas', f'foto_processada_jogada_{jogada}.png')
     cv2.imwrite(caminho_para_salvar, imgDil)
     
-    imagem_ROI = cv2.imread(f'fotos_processadas/foto_processada_jogada_{jogada}.png')
-    # Desenhar os retângulos das ROIs na imagem
-    for (x, y, w, h) in rois:
-        recorte = imgDil[y:y+h, x:x+w]
-        qtPxBranco = cv2.countNonZero(recorte)
-        cv2.putText(imagem_ROI, str (qtPxBranco), (x, y + h - 10),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-        cv2.rectangle(imagem_ROI, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        #colocar o if aqui <------------
+    return imgDil
     
-    # Criar a pasta 'fotos_com_ROIs' se ela não existir
-    if not os.path.exists('fotos_com_ROIs'):
-        os.makedirs('fotos_com_ROIs')
-    
-    # Salvar a imagem com as ROIs na pasta
-    caminho_para_salvar = os.path.join('fotos_com_ROIs', f'foto_com_ROIs_jogada_{jogada}.png')
-    cv2.imwrite(caminho_para_salvar, imagem_ROI)
-
-    return imagem_ROI
   
 def inicializar_tabuleiro():
     # Cria uma matriz 8x8 inicializada com zeros
@@ -191,6 +226,44 @@ def main():
 
         # Verifica a tecla pressionada
         key = cv2.waitKey(30) & 0xFF
+        
+        # Verifica se a tecla 'i' foi pressionadaqq
+        if key == ord('i'):
+            img_name = f"fotos_jogadas/foto_jogada_inicio.png"
+            cv2.imwrite(img_name, frame)
+            print(f"Foto salva como {img_name}")
+            global image
+            # Carregar a imagem do tabuleiro de xadrez
+            image = cv2.imread('fotos_jogadas/foto_jogada_inicio.png')
+            if image is None:
+                print("Erro ao carregar a imagem.")
+                return
+            # Exibir a imagem e capturar os pontos clicados
+            cv2.imshow("Imagem", image)
+            cv2.setMouseCallback("Imagem", capturar_pontos)
+    
+            print("Clique nos quatro cantos do tabuleiro de xadrez na ordem: top-left, top-right, bottom-right, bottom-left.")
+            cv2.waitKey(0)
+    
+            if len(pontos_clicados) != 4:
+                print("Você deve clicar exatamente em quatro pontos.")
+                return   
+            # Aplicar a transformação de perspectiva
+            warp, matriz = warp_perspective_tabuleiro(image, pontos_clicados)
+            
+            # Detectar os cantos das casas do tabuleiro
+            cantos_casas = detectar_cantos_casas(warp)
+            
+            # Calcular a matriz inversa da transformação de perspectiva
+            matriz_inversa = np.linalg.inv(matriz)
+            
+            # Desenhar as ROIs na imagem original
+            image = desenhar_roi_original(image, cantos_casas, matriz_inversa)
+            
+            # Exibir a imagem original com as ROIs das casas marcadas
+            cv2.imshow("Imagem Original com ROIs das Casas", image)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
         # Verifica se a tecla 'x' foi pressionada
         if key == ord('x'):
@@ -200,19 +273,37 @@ def main():
             print(f"Foto salva como {img_name}")
             
             # Lê a imagem da jogada
-            imagem = cv2.imread(f'fotos_jogadas/foto_jogada_{jogada}.png')
+            image = cv2.imread(f'fotos_jogadas/foto_jogada_{jogada}.png')
+            
+            # Aplicar a transformação de perspectiva
+            warp, matriz = warp_perspective_tabuleiro(image, pontos_clicados)
+            
+            # Detectar os cantos das casas do tabuleiro
+            cantos_casas = detectar_cantos_casas(warp)
+            
+            # Calcular a matriz inversa da transformação de perspectiva
+            matriz_inversa = np.linalg.inv(matriz)
+            image = processa_e_analisa_imagem(image, jogada)
+            # Desenhar as ROIs na imagem original
+            image_ROIs = desenhar_roi_original(image, cantos_casas, matriz_inversa)
 
-            # Processamento da imagem
-            #imgCinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
-            #imgTh = cv2.adaptiveThreshold(imgCinza, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 25, 16)
+            
+            # Criar a pasta 'fotos_com_ROIs' se ela não existir
+            if not os.path.exists('fotos_com_ROIs'):
+                os.makedirs('fotos_com_ROIs')
+    
+            # Salvar a imagem com as ROIs na pasta
+            caminho_para_salvar = os.path.join('fotos_com_ROIs', f'foto_com_ROIs_jogada_{jogada}.png')
+            cv2.imwrite(caminho_para_salvar, image_ROIs)
+            
 
             # Coloca as ROIs na imagem
-            imagem_processada = processa_e_analisa_imagem(imagem, rois, jogada)
+            #imagem_processada = processa_e_analisa_imagem(imagem, rois, jogada)
 
             # Exibe a imagem da jogada com as ROIs
-            cv2.imshow(f'Imagem processada da jogada {jogada}', imagem_processada)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+            #cv2.imshow(f'Imagem processada da jogada {jogada}', imagem_processada)
+            #cv2.waitKey(0)
+            #cv2.destroyAllWindows()
 
             # Aumenta para a próxima jogada
             jogada += 1
