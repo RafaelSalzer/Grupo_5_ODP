@@ -1,0 +1,72 @@
+import cv2
+import numpy as np
+import os
+
+# Função de callback para registrar os pontos clicados
+points = []
+scale_factor = 0.5  # fator de escala para redimensionar a imagem
+
+def click_event(event, x, y, flags, param):
+    if event == cv2.EVENT_LBUTTONDOWN:
+        scaled_x = int(x / scale_factor)
+        scaled_y = int(y / scale_factor)
+        points.append((scaled_x, scaled_y))
+        cv2.circle(scaled_image, (x, y), 5, (0, 0, 255), -1)
+        cv2.imshow("Image", scaled_image)
+
+# Função para desenhar a malha do tabuleiro de xadrez
+def draw_chessboard(image, points):
+    pts1 = np.float32(points)
+    pts2 = np.float32([[0, 0], [800, 0], [800, 800], [0, 800]])
+    
+    matrix = cv2.getPerspectiveTransform(pts1, pts2)
+    result = cv2.warpPerspective(image, matrix, (800, 800))
+    
+    for i in range(1, 8):
+        cv2.line(result, (0, 100 * i), (800, 100 * i), (255, 0, 0), 2)
+        cv2.line(result, (100 * i, 0), (100 * i, 800), (255, 0, 0), 2)
+    
+    return result
+
+# Função para salvar a imagem e as coordenadas das casas
+def save_image_and_coordinates(result):
+    if not os.path.exists("output"):
+        os.makedirs("output")
+
+    cv2.imwrite("output/chessboard.png", result)
+    
+    coordinates = []
+    for i in range(8):
+        for j in range(8):
+            x = j * 100
+            y = i * 100
+            coordinates.append((x, y, x + 100, y + 100))
+    
+    with open("output/coordinates.txt", "w") as file:
+        for coord in coordinates:
+            file.write(f"{coord}\n")
+
+# Carregar a imagem
+image_path = 'tabuleiroxadrezVerde.png'  # substitua pelo caminho da sua imagem
+image = cv2.imread(image_path)
+original_height, original_width = image.shape[:2]
+
+# Redimensionar a imagem para facilitar a marcação dos pontos
+scaled_image = cv2.resize(image, (int(original_width * scale_factor), int(original_height * scale_factor)))
+cv2.imshow("Image", scaled_image)
+cv2.setMouseCallback("Image", click_event)
+
+# Esperar até que 4 pontos sejam clicados
+while len(points) < 4:
+    cv2.waitKey(1)
+
+cv2.destroyAllWindows()
+
+# Desenhar a malha e salvar a imagem resultante
+result_image = draw_chessboard(image, points)
+save_image_and_coordinates(result_image)
+
+# Mostrar a imagem resultante
+cv2.imshow("Chessboard", result_image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()

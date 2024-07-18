@@ -1,0 +1,74 @@
+import cv2
+import numpy as np
+
+# Função para carregar e redimensionar a imagem
+def load_and_resize_image(image_path, fixed_size=(400, 400)):
+    image = cv2.imread(image_path)
+    if image is None:
+        raise FileNotFoundError(f"Image not found: {image_path}")
+    resized_image = cv2.resize(image, fixed_size)
+    return resized_image, image
+
+# Função para encontrar diferenças entre duas imagens
+def find_differences(image1, image2, threshold=50):
+    gray1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
+    gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+
+    diff = cv2.absdiff(gray1, gray2)
+    _, thresh = cv2.threshold(diff, threshold, 255, cv2.THRESH_BINARY)
+    return thresh
+
+# Função para identificar as casas alteradas no tabuleiro
+def identify_changed_squares(thresh, grid_size=8):
+    height, width = thresh.shape
+    square_height = height // grid_size
+    square_width = width // grid_size
+
+    changed_squares = []
+    for row in range(grid_size):
+        for col in range(grid_size):
+            x1 = col * square_width
+            y1 = row * square_height
+            x2 = (col + 1) * square_width
+            y2 = (row + 1) * square_height
+            square = thresh[y1:y2, x1:x2]
+            if np.any(square):
+                changed_squares.append((row, col))
+
+    return changed_squares
+
+# Função para converter coordenadas de quadrados para notação de xadrez
+def square_to_notation(row, col):
+    files = 'abcdefgh'
+    ranks = '87654321'
+    return f"{files[col]}{ranks[row]}"
+
+# Caminho das imagens
+image_path1 = 'f2.png'
+image_path2 = 'g4.png'
+
+# Carregar e redimensionar as imagens para um tamanho fixo
+fixed_size = (400, 400)
+resized_image1, original_image1 = load_and_resize_image(image_path1, fixed_size)
+resized_image2, original_image2 = load_and_resize_image(image_path2, fixed_size)
+
+# Encontrar diferenças
+thresh = find_differences(resized_image1, resized_image2)
+
+# Identificar casas alteradas
+changed_squares = identify_changed_squares(thresh)
+
+# Converter coordenadas para notação de xadrez
+changed_squares_notation = [square_to_notation(row, col) for row, col in changed_squares]
+
+# Mostrar resultados
+print("Casas alteradas:")
+for square in changed_squares_notation:
+    print(square)
+
+# Mostrar imagens e a imagem da diferença
+cv2.imshow("Image 1", resized_image1)
+cv2.imshow("Image 2", resized_image2)
+cv2.imshow("Differences", thresh)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
