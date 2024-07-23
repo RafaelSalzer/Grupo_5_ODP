@@ -1,0 +1,197 @@
+###################################################################################
+## Import Libraries
+###################################################################################
+import os
+import cv2
+import numpy as np
+
+###################################################################################
+## Define Main Variables
+###################################################################################
+
+dir_path = os.path.dirname(os.path.realpath(__file__)) + "/numpy_saved"  # Path of current directory
+img_resize = (800, 800)  # Set output image size
+pontos_clicados = []
+
+# Create a variable to store the camera instance
+camera = cv2.VideoCapture('https://192.168.2.107:8080/video')
+
+# Check if camera is opened correctly
+if not camera.isOpened():
+    print("Error: Camera could not be opened. Please check the URL or camera settings.")
+    exit()
+
+##################################################################################
+## Code For Run Program
+###################################################################################
+
+print("Enter Code for Special Run: ")
+code = input().strip()
+dir_path = os.path.join(dir_path, code)
+
+if not os.path.exists(dir_path):
+    os.makedirs(dir_path)
+    print(f"Directory {dir_path} created.")
+else:
+    print(f"Directory {dir_path} already exists.")
+
+###################################################################################
+## Define Functions
+###################################################################################
+
+def get_warp_img(img, dir_path, img_resize):
+    try:
+        pts1 = np.load(os.path.join(dir_path, 'chess_board_warp_prespective.npz'))['pts1']
+        pts2 = np.load(os.path.join(dir_path, 'chess_board_warp_prespective.npz'))['pts2']
+        H, _ = cv2.findHomography(pts1, pts2)
+        result = cv2.warpPerspective(img, H, img_resize)
+        return result
+    except Exception as e:
+        print(f"Error in get_warp_img: {e}")
+        return img
+
+def draw_circle(event, x, y, flags, param):
+    global ix, iy
+    if event == cv2.EVENT_LBUTTONDBLCLK:
+        ix, iy = x, y
+        cv2.circle(img, (x, y), 2, (255, 0, 0), -1)
+
+def get_points(image, numOfPoints):
+    global img, ix, iy
+    img = image.copy()
+    img = cv2.resize(img, (800, 800))
+    cv2.namedWindow("image")
+    cv2.setMouseCallback("image", draw_circle)
+    points = []
+    print(f"Click to add {numOfPoints} points. Press 'a' to confirm each point.")
+    while len(points) < numOfPoints:
+        cv2.imshow("image", img)
+        k = cv2.waitKey(1)
+        if k == ord('a') and ix is not None and iy is not None:
+            points.append([int(ix), int(iy)])
+            cv2.circle(img, (ix, iy), 3, (0, 0, 255), -1)
+    cv2.destroyAllWindows()
+    return points
+
+def capturar_pontos(event, x, y, flags, param):
+    global pontos_clicados
+    if event == cv2.EVENT_LBUTTONDOWN:
+        pontos_clicados.append((x, y))
+        cv2.circle(img, (x, y), 5, (0, 255, 0), -1)
+        cv2.imshow("Imagem", img)
+
+def warp_perspective_tabuleiro(img, pontos_ordenados):
+    largura_max, altura_max = img_resize
+    pontos_destino = np.array([
+        [0, 0],
+        [largura_max - 1, 0],
+        [largura_max - 1, altura_max - 1],
+        [0, altura_max - 1]], dtype="float32")
+    
+    # Calcular a matriz de transformação de perspectiva
+    matriz = cv2.getPerspectiveTransform(np.array(pontos_ordenados, dtype="float32"), pontos_destino)
+    # Aplicar a transformação de perspectiva
+    warp = cv2.warpPerspective(img, matriz, (largura_max, altura_max))
+    
+    return warp, matriz
+
+def detectar_cantos_casas(img):
+    altura, largura = img.shape[:2]
+    tamanho_casa = altura // 8
+    cantos_casas = [(j * tamanho_casa, i * tamanho_casa, (j + 1) * tamanho_casa, (i + 1) * tamanho_casa)
+                    for i in range(8) for j in range(8)]
+    return cantos_casas
+
+def desenhar_roi_original(img, cantos_casas, matriz_inversa):
+    for (x1, y1, x2, y2) in cantos_casas:
+        pontos = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype="float32")
+        pontos = cv2.perspectiveTransform(np.array([pontos]), matriz_inversa)[0]
+        pontos = pontos.astype(int)
+        cv2.polylines(img, [pontos], isClosed=True, color=(255, 0, 0), thickness=1)
+
+###################################################################################
+## Camera Position Calibration
+###################################################################################
+
+while True:
+    answer = input("Do you want to set camera position [y/n]: ").strip().lower()
+    if answer == "y":
+        print("Press 'q' to exit.")
+        while True:
+            ret, img = camera.read()
+            if not ret:
+                print("Error: Failed to capture image from camera.")
+                continue
+            img = cv2.resize(img, img_resize)
+            cv2.imshow("Set Camera Position", img)
+            k = cv2.waitKey(1)
+            if k == ord('q'):
+                cv2.destroyAllWindows()
+                break
+        break
+    elif answer == "n":
+        print("Assuming camera position is already set...")
+        break
+    else:
+        print("Invalid input. Please enter 'y' or 'n'.")
+
+###################################################################################
+## Image Warp Perspective
+###################################################################################
+
+while True:
+    answer = input("Do you want to warp perspective image [y/n]: ").strip().lower()
+    if answer == "y":
+        ret, img = camera.read()
+        if not ret:
+            print("Error: Failed to capture image from camera.")
+            continue
+        img = cv2.resize(img, img_resize)
+        warp_points = get_points(img, 4)
+        if len(warp_points) != 4:
+            print("Error: You must select exactly four points.")
+            continue
+        pts1 = np.float32([[warp_points[0][0], warp_points[0][1]],
+                           [warp_points[1][0], warp_points[1][1]],
+                           [warp_points[3][0], warp_points[3][1]],
+                           [warp_points[2][0], warp_points[2][1]]])
+        pts2 = np.float32([[0, 0], [img_resize[0], 0], [0, img_resize[1]], [img_resize[0], img_resize[1]]])
+        np.savez(os.path.join(dir_path, "chess_board_warp_prespective.npz"), pts1=pts1, pts2=pts2)
+        result = get_warp_img(img, dir_path, img_resize)
+        cv2.imshow("Warped Image", result)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        break
+    else:
+        print("Invalid input. Please enter 'y' or 'n'.")
+
+while True:
+    ret, img = camera.read()
+    if not ret:
+        print("Error: Failed to capture image from camera.")
+        continue
+    img = cv2.resize(img, img_resize)
+    img = get_warp_img(img, dir_path, img_resize)
+    
+    cv2.imshow("Imagem", img)
+    cv2.setMouseCallback("Imagem", capturar_pontos)
+    
+    print("Click on the four corners of the chessboard in the order: top-left, top-right, bottom-right, bottom-left.")
+    cv2.waitKey(0)
+    
+    if len(pontos_clicados) != 4:
+        print("Error: You must click exactly four points.")
+        continue
+    
+    warp, matriz = warp_perspective_tabuleiro(img, pontos_clicados)
+    cantos_casas = detectar_cantos_casas(warp)
+    matriz_inversa = np.linalg.inv(matriz)
+    desenhar_roi_original(img, cantos_casas, matriz_inversa)
+    
+    cv2.imshow("Original Image with ROIs", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    break
+
+camera.release()
+cv2.destroyAllWindows()
