@@ -39,7 +39,7 @@ def draw_chessboard_grid(image):
 def detect_changes(frame1, frame2):
     diff = cv2.absdiff(frame1, frame2)
     gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-    _, thresh = cv2.threshold(gray, 20, 255, cv2.THRESH_BINARY)
+    _, thresh = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)
     
     # Operações de morfologia para remover ruídos pequenos
     kernel = np.ones((5, 5), np.uint8)
@@ -55,7 +55,7 @@ def detect_changes(frame1, frame2):
 
     changes = []
     cell_size = 800 // 8
-    min_area = cell_size * cell_size // 4  # Define a área mínima para considerar uma mudança como relevante
+    min_area = cell_size * cell_size // 5  # Define a área mínima para considerar uma mudança como relevante
 
     # Copia da imagem para desenhar os retângulos
     debug_image = frame2.copy()
@@ -66,7 +66,7 @@ def detect_changes(frame1, frame2):
             i, j = x // cell_size, y // cell_size
             house = chr(97+i) + str(8-j)
             changes.append((house, x, y, w, h))
-            cv2.rectangle(debug_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.rectangle(debug_image, (x+25, y+25), (x + w//2, y + h//2), (0, 255, 0), 2)
             cv2.putText(debug_image, f"x:{x}, y:{y}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
             print(f"Change detected in house: {house} at position x: {x}, y: {y}, width: {w}, height: {h}")  # Debug print
     
@@ -77,7 +77,7 @@ def detect_changes(frame1, frame2):
     return changes
 
 # Inicialização da câmera
-cap = cv2.VideoCapture('https://192.168.2.107:8080/video')
+cap = cv2.VideoCapture(1)
 
 if not cap.isOpened():
     print("Erro ao abrir a câmera.")
