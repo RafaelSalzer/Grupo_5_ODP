@@ -19,14 +19,14 @@ def get_points(image, num_points=4):
 
 # Função para calcular a homografia e aplicar a transformação
 def apply_perspective_transform(image, src_points):
-    dst_points = np.array([[0, 0], [800, 0], [800, 800], [0, 800]], dtype='float32')
+    dst_points = np.array([[0, 0], [640, 0], [640, 640], [0, 640]], dtype='float32')
     M = cv2.getPerspectiveTransform(np.array(src_points, dtype='float32'), dst_points)
-    warped = cv2.warpPerspective(image, M, (800, 800))
+    warped = cv2.warpPerspective(image, M, (640, 640))
     return warped, M
 
 # Função para criar um grid de 64 quadrados
 def draw_chessboard_grid(image):
-    cell_size = 800 // 8
+    cell_size = 640 // 8
     for i in range(8):
         for j in range(8):
             x1, y1 = i * cell_size, j * cell_size
@@ -39,12 +39,12 @@ def draw_chessboard_grid(image):
 def detect_changes(frame1, frame2):
     diff = cv2.absdiff(frame1, frame2)
     gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-    _, thresh = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)
+    _, thresh = cv2.threshold(gray, 30, 255, cv2.THRESH_BINARY)
     
     # Operações de morfologia para remover ruídos pequenos
-    kernel = np.ones((5, 5), np.uint8)
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+    #kernel = np.ones((5, 5), np.uint8)
+    #thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+    #thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
 
     # Debug prints
     cv2.imshow("Gray", gray)
@@ -54,19 +54,21 @@ def detect_changes(frame1, frame2):
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     changes = []
-    cell_size = 800 // 8
-    min_area = cell_size * cell_size // 5  # Define a área mínima para considerar uma mudança como relevante
+    cell_size = 640 // 8
+    min_area = cell_size * cell_size // 4  # Define a área mínima para considerar uma mudança como relevante
 
     # Copia da imagem para desenhar os retângulos
     debug_image = frame2.copy()
 
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
+        x=x+25
+        y=y+25
         if w * h > min_area:  # Apenas considere mudanças com uma área maior que min_area
             i, j = x // cell_size, y // cell_size
             house = chr(97+i) + str(8-j)
             changes.append((house, x, y, w, h))
-            cv2.rectangle(debug_image, (x+25, y+25), (x + w//2, y + h//2), (0, 255, 0), 2)
+            cv2.rectangle(debug_image, (x+10, y+10), (x + w//2, y + h//2), (0, 255, 0), 2)
             cv2.putText(debug_image, f"x:{x}, y:{y}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
             print(f"Change detected in house: {house} at position x: {x}, y: {y}, width: {w}, height: {h}")  # Debug print
     
@@ -115,7 +117,7 @@ while True:
         cap.release()
         exit()
 
-    warped_frame = cv2.warpPerspective(frame, M, (800, 800))
+    warped_frame = cv2.warpPerspective(frame, M, (640, 640))
     warped_with_grid = draw_chessboard_grid(warped_frame.copy())
     cv2.imshow("Warped Chessboard", warped_with_grid)
 
@@ -130,8 +132,8 @@ while True:
         print("Segundo frame capturado.")
         changes = detect_changes(frame1, frame2)
         if changes:
-            changes_sorted = sorted(changes, key=lambda c: c[1] + c[2])  # Ordenar pelas coordenadas x e y
-            print(f"Moveu de {changes_sorted[-1][0]} para {changes_sorted[0][0]}")
+            changes_sorted = sorted(changes, key=lambda c: c[1] + c[2] )  # Ordenar pelas coordenadas x e y
+            print(f"Moveu de {changes_sorted[0][0]} para {changes_sorted[-1][0]}")
         else:
             print("Nenhuma mudança detectada.")
         frame1 = frame2  # Atualiza o frame1 para a próxima iteração
